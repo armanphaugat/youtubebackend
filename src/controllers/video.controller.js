@@ -2,7 +2,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import uploadOncloudinary from "../utils/cloudnary.js";
-import getVideoDuration from "../utils/getVideoDuration.js";
+import getVideoDuration, { transcodeToHLS } from "../utils/ffmpeg.js";
 import { Video } from "../models/video.model.js";
 import fs from  "fs"
 const uploadVideo=asyncHandler(async(req,res)=>{
@@ -10,14 +10,18 @@ const uploadVideo=asyncHandler(async(req,res)=>{
     const thumbnailLocalFilePath=req.files?.thumbnailfile?.[0]?.path
     if(!videoLocalFilePath) throw new ApiError(400,"Please Upload The Video")
     const duration=await getVideoDuration(videoLocalFilePath)
+    const {outputDir}= await transcodeToHLS(videoLocalFilePath)
+    const url360 = await uploadResolutionToCloudinary(outputDir, "360p");
+    const url720 = await uploadResolutionToCloudinary(outputDir, "720p");
     const videourl=await uploadOncloudinary(videoLocalFilePath);
+    const hlsUrl = await uploadMasterPlaylist(outputDir, { "360p": url360, "720p": url720 });
     let thumbnailurl;
     if(!thumbnailLocalFilePath) throw new ApiError(400,"Please Upload The Thumbnail")
     thumbnailurl=await uploadOncloudinary(thumbnailLocalFilePath)
     const {title}=req.body
     if(!title) throw new ApiError(400,"Please Enter The Title")
     const video=await Video.create({
-        videofile:videourl.url,thumbnail:thumbnailurl.url,title,duration,owner:req.user._id
+        videofile:hlsUrl,thumbnail:thumbnailurl.url,title,duration,owner:req.user._id
     })
     if(!video) throw new ApiError(500,"Internal Server Error")
     return res.status(201).json(
