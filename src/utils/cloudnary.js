@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
-import path from "path";
 import dotenv from "dotenv";
 dotenv.config()
 cloudinary.config({
@@ -9,19 +8,12 @@ cloudinary.config({
     api_secret: process.env.API_SECRET
 });
 
-const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"]);
-
-const getResourceType = (filePath) => {
-    const ext = path.extname(filePath).toLowerCase();
-    return VIDEO_EXTENSIONS.has(ext) ? "video" : "image";
-};
-
 const uploadOncloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return null;
 
         const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: getResourceType(localFilePath)
+            resource_type: "image"
         });
 
         fs.unlinkSync(localFilePath);
